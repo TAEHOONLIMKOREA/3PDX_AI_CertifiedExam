@@ -16,16 +16,54 @@ FastAPI 기반 Vision Anomaly Detection API를 테스트하기 위한 GUI 애플
 
 ## 설치 방법
 
-### 1. 의존성 설치
+### 방법 1: Python으로 직접 실행
+
+#### 1. 의존성 설치
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 애플리케이션 실행
+#### 2. 애플리케이션 실행
 
 ```bash
 python app.py
+```
+
+### 방법 2: EXE 실행 파일 빌드
+
+#### Windows에서 자동 빌드
+
+```bash
+build_exe.bat
+```
+
+위 명령어를 실행하면 자동으로:
+1. 가상환경 생성 (`venv` 폴더)
+2. 의존성 설치
+3. PyInstaller 설치
+4. EXE 파일 빌드
+
+빌드 완료 후 `dist\VisionAD_Test.exe` 파일이 생성됩니다.
+
+#### 수동 빌드 (모든 OS)
+
+```bash
+# 1. 가상환경 생성
+python -m venv venv
+
+# 2. 가상환경 활성화
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# 3. 의존성 설치
+pip install -r requirements.txt
+pip install pyinstaller
+
+# 4. EXE 빌드
+pyinstaller --onefile --windowed --name="VisionAD_Test" app.py
 ```
 
 ## 사용 방법
@@ -49,6 +87,19 @@ python app.py
 5. ZIP 파일 저장 위치 선택
 6. 추론 완료 후 결과 확인
 
+### 4. F1 Score 계산
+1. "F1 Score 계산" 탭 선택
+2. "정상 이미지 선택" 버튼으로 정상 이미지들 선택
+3. "비정상 이미지 선택" 버튼으로 비정상 이미지들 선택
+4. **1단계:** "1️⃣ 배치 추론 실행" 버튼 클릭
+   - ZIP 파일 저장 위치 선택
+   - 모든 이미지의 배치 추론 완료 대기
+5. **2단계:** "2️⃣ F1 Score 계산" 버튼 클릭
+   - 저장된 ZIP 파일의 CSV를 파싱하여 F1 Score 계산
+   - Confusion Matrix (혼동 행렬) 확인
+   - Precision, Recall, F1 Score, Accuracy 지표 확인
+   - Anomaly Score 분포 분석 확인
+
 ## 파일 구조
 
 ```
@@ -56,7 +107,9 @@ python app.py
 ├── app.py              # 메인 GUI 애플리케이션
 ├── api_client.py       # FastAPI 클라이언트 모듈
 ├── requirements.txt    # 의존성 목록
-└── README.md          # 사용 설명서
+├── build_exe.bat       # Windows EXE 빌드 스크립트
+├── README.md          # 사용 설명서
+└── .gitignore         # Git 제외 파일 목록
 ```
 
 ## 요구사항

@@ -10,6 +10,9 @@ import os
 
 
 class VisionADTestApp:
+    # F1 Score 계산을 위한 Threshold 값 (고정)
+    THRESHOLD = 0.68
+
     def __init__(self):
         self.root = ctk.CTk()
         self.root.title("Vision AD API 테스트")
@@ -140,6 +143,7 @@ class VisionADTestApp:
         # 초기화
         self.normal_image_paths = []
         self.abnormal_image_paths = []
+        self.f1_zip_path = None  # 배치 추론 결과 ZIP 파일 경로
 
         # 좌측: 정상 이미지
         left_frame = ctk.CTkFrame(self.tab_f1)
@@ -175,28 +179,57 @@ class VisionADTestApp:
         bottom_frame = ctk.CTkFrame(self.tab_f1)
         bottom_frame.pack(fill="x", padx=10, pady=10)
 
-        # Threshold 설정
-        threshold_frame = ctk.CTkFrame(bottom_frame)
-        threshold_frame.pack(fill="x", pady=5)
+        # # Threshold 설정 (사용자 입력)
+        # threshold_frame = ctk.CTkFrame(bottom_frame)
+        # threshold_frame.pack(fill="x", pady=5)
+        #
+        # ctk.CTkLabel(threshold_frame, text="Threshold:", font=("Arial", 14)).pack(side="left", padx=5)
+        # self.threshold_entry = ctk.CTkEntry(threshold_frame, width=100, placeholder_text="0.75")
+        # self.threshold_entry.pack(side="left", padx=5)
+        # self.threshold_entry.insert(0, "0.75")
+        # ctk.CTkLabel(threshold_frame, text="(Anomaly Score > Threshold → 비정상 판정)", font=("Arial", 10)).pack(side="left", padx=5)
 
-        ctk.CTkLabel(threshold_frame, text="Threshold:", font=("Arial", 14)).pack(side="left", padx=5)
-        self.threshold_entry = ctk.CTkEntry(threshold_frame, width=100, placeholder_text="0.5")
-        self.threshold_entry.pack(side="left", padx=5)
-        self.threshold_entry.insert(0, "0.5")
-        ctk.CTkLabel(threshold_frame, text="(Anomaly Score > Threshold → 비정상 판정)", font=("Arial", 10)).pack(side="left", padx=5)
+        # Threshold 정보 표시 (고정값)
+        # threshold_label = ctk.CTkLabel(
+        #     bottom_frame,
+        #     text=f"Threshold: {self.THRESHOLD} (Anomaly Score > {self.THRESHOLD} → 비정상 판정)",
+        #     font=("Arial", 12)
+        # )
+        # threshold_label.pack(pady=5)
 
-        # 실행 버튼
+        # 실행 버튼 프레임
+        btn_frame = ctk.CTkFrame(bottom_frame)
+        btn_frame.pack(fill="x", pady=10)
+
+        # 1단계: 배치 추론 실행
         ctk.CTkButton(
-            bottom_frame,
-            text="F1 Score 계산 실행",
-            command=self.run_f1_calculation,
+            btn_frame,
+            text="1 배치 추론 실행",
+            command=self.run_f1_batch_inference,
             height=40,
-            font=("Arial", 14, "bold")
-        ).pack(pady=10)
+            width=250,
+            font=("Arial", 14, "bold"),
+            fg_color="#2196F3"
+        ).pack(side="left", padx=5, expand=True)
+
+        # 2단계: F1 Score 계산
+        ctk.CTkButton(
+            btn_frame,
+            text="2 F1 Score 계산",
+            command=self.run_f1_score_calculation,
+            height=40,
+            width=250,
+            font=("Arial", 14, "bold"),
+            fg_color="#FF9800"
+        ).pack(side="left", padx=5, expand=True)
 
         # 진행 상태
         self.f1_status_label = ctk.CTkLabel(bottom_frame, text="", font=("Arial", 12))
         self.f1_status_label.pack(pady=5)
+
+        # ZIP 파일 경로 표시
+        self.f1_zip_label = ctk.CTkLabel(bottom_frame, text="추론 결과 ZIP: 없음", font=("Arial", 10), text_color="gray")
+        self.f1_zip_label.pack(pady=2)
 
         # 결과 표시 영역
         result_main_frame = ctk.CTkScrollableFrame(bottom_frame, width=500, height=500)
@@ -477,8 +510,8 @@ class VisionADTestApp:
             filename = os.path.basename(path)
             self.abnormal_listbox.insert("end", f"{i}. {filename}\n")
 
-    def run_f1_calculation(self):
-        """F1 Score 계산 실행"""
+    def run_f1_batch_inference(self):
+        """F1 Score용 배치 추론 실행 (1단계)"""
         if not self.client:
             messagebox.showerror("오류", "먼저 API 서버에 연결하세요")
             return
@@ -491,32 +524,78 @@ class VisionADTestApp:
             messagebox.showerror("오류", "비정상 이미지를 먼저 선택하세요")
             return
 
-        # Threshold 값 가져오기
-        try:
-            threshold = float(self.threshold_entry.get())
-            if threshold < 0 or threshold > 1:
-                messagebox.showerror("오류", "Threshold 값은 0과 1 사이여야 합니다")
-                return
-        except ValueError:
-            messagebox.showerror("오류", "올바른 Threshold 값을 입력하세요")
+        # 저장 경로 선택
+        output_path = filedialog.asksaveasfilename(
+            title="배치 추론 결과 저장 위치",
+            defaultextension=".zip",
+            filetypes=[("ZIP files", "*.zip")]
+        )
+
+        if not output_path:
+            return
+
+        # 모든 이미지 합치기
+        all_images = self.normal_image_paths + self.abnormal_image_paths
+
+        # 비동기 처리
+        def batch_task():
+            try:
+                total_images = len(all_images)
+                self.f1_status_label.configure(text=f"1단계: {total_images}개 이미지 배치 추론 중...")
+
+                success, error = self.client.inference_batch(all_images, output_path)
+
+                if error:
+                    print(f"ERROR: {error}")
+                    self.root.after(0, lambda: messagebox.showerror("오류", error))
+                    self.root.after(0, lambda: self.f1_status_label.configure(text="❌ 배치 추론 실패"))
+                else:
+                    # 성공 시 ZIP 경로 저장
+                    self.f1_zip_path = output_path
+                    self.root.after(0, lambda: messagebox.showinfo("성공", f"배치 추론 완료!\n결과 저장: {output_path}"))
+                    self.root.after(0, lambda: self.f1_status_label.configure(text="✅ 배치 추론 완료! (2단계: F1 Score 계산 버튼을 눌러주세요)"))
+                    self.root.after(0, lambda: self.f1_zip_label.configure(text=f"추론 결과 ZIP: {os.path.basename(output_path)}", text_color="green"))
+
+            except Exception as e:
+                import traceback
+                error_msg = traceback.format_exc()
+                print(f"EXCEPTION in batch_task:\n{error_msg}")
+                self.root.after(0, lambda: messagebox.showerror("예외 발생", f"예상치 못한 오류:\n{str(e)}"))
+                self.root.after(0, lambda: self.f1_status_label.configure(text="❌ 예외 발생"))
+
+        thread = threading.Thread(target=batch_task)
+        thread.start()
+
+    def run_f1_score_calculation(self):
+        """저장된 ZIP에서 F1 Score 계산 (2단계)"""
+        if not self.client:
+            messagebox.showerror("오류", "먼저 API 서버에 연결하세요")
+            return
+
+        if not self.f1_zip_path or not os.path.exists(self.f1_zip_path):
+            messagebox.showerror("오류", "먼저 1단계 '배치 추론 실행'을 완료하세요")
+            return
+
+        if not self.normal_image_paths or not self.abnormal_image_paths:
+            messagebox.showerror("오류", "정상/비정상 이미지를 선택하세요")
             return
 
         # 비동기 처리
         def f1_task():
             try:
-                total_images = len(self.normal_image_paths) + len(self.abnormal_image_paths)
-                self.f1_status_label.configure(text=f"{total_images}개 이미지 추론 중...")
+                self.f1_status_label.configure(text="2단계: F1 Score 계산 중...")
 
-                result, error = self.client.calculate_f1_score(
+                result, error = self.client.calculate_f1_from_zip(
+                    self.f1_zip_path,
                     self.normal_image_paths,
                     self.abnormal_image_paths,
-                    threshold
+                    self.THRESHOLD  # 고정된 Threshold 값 사용
                 )
 
                 if error:
                     print(f"ERROR: {error}")
                     self.root.after(0, lambda: messagebox.showerror("오류", error))
-                    self.root.after(0, lambda: self.f1_status_label.configure(text="❌ 계산 실패"))
+                    self.root.after(0, lambda: self.f1_status_label.configure(text="❌ F1 Score 계산 실패"))
                 else:
                     # 결과 출력
                     def display_result():
@@ -567,7 +646,7 @@ FN (False Negative): {result['fn']:3d}개 - 비정상을 정상으로 잘못 판
 📊 평균 점수 차이: {abs(abnormal_avg - normal_avg):.6f}"""
                         self.f1_dist_label.configure(text=dist_text)
 
-                        self.f1_status_label.configure(text="✅ 계산 완료!")
+                        self.f1_status_label.configure(text="✅ F1 Score 계산 완료!")
 
                     self.root.after(0, display_result)
 
