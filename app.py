@@ -13,7 +13,7 @@ class VisionADTestApp:
     def __init__(self):
         self.root = ctk.CTk()
         self.root.title("Vision AD API 테스트")
-        self.root.geometry("1000x700")
+        self.root.geometry("1400x800")
 
         # API 클라이언트
         self.client = None
@@ -32,9 +32,9 @@ class VisionADTestApp:
         top_frame.pack(fill="x", padx=10, pady=10)
 
         ctk.CTkLabel(top_frame, text="API 서버 URL:", font=("Arial", 14)).pack(side="left", padx=5)
-        self.url_entry = ctk.CTkEntry(top_frame, width=300, placeholder_text="http://localhost:8000")
+        self.url_entry = ctk.CTkEntry(top_frame, width=300, placeholder_text="http://bigsoft.iptime.org:55630")
         self.url_entry.pack(side="left", padx=5)
-        self.url_entry.insert(0, "http://localhost:8000")
+        self.url_entry.insert(0, "http://bigsoft.iptime.org:55630")
 
         ctk.CTkButton(top_frame, text="연결", command=self.connect_to_api, width=100).pack(side="left", padx=5)
 
@@ -198,14 +198,103 @@ class VisionADTestApp:
         self.f1_status_label = ctk.CTkLabel(bottom_frame, text="", font=("Arial", 12))
         self.f1_status_label.pack(pady=5)
 
-        # 결과 표시
-        result_frame = ctk.CTkFrame(bottom_frame)
-        result_frame.pack(fill="both", expand=True, pady=10)
+        # 결과 표시 영역
+        result_main_frame = ctk.CTkScrollableFrame(bottom_frame, width=500, height=500)
+        result_main_frame.pack(fill="both", expand=True, pady=10)
 
-        ctk.CTkLabel(result_frame, text="결과", font=("Arial", 16, "bold")).pack(pady=5)
+        # 결과 타이틀
+        title_frame = ctk.CTkFrame(result_main_frame, fg_color="#2B2B2B")
+        title_frame.pack(fill="x", pady=(0, 10))
+        ctk.CTkLabel(title_frame, text="🎯 F1 Score 계산 결과", font=("Arial", 18, "bold")).pack(pady=10)
 
-        self.f1_result_textbox = ctk.CTkTextbox(result_frame, height=200)
-        self.f1_result_textbox.pack(fill="both", expand=True, pady=5)
+        # 1. 데이터셋 정보
+        info_frame = ctk.CTkFrame(result_main_frame)
+        info_frame.pack(fill="x", pady=5)
+        ctk.CTkLabel(info_frame, text="📊 데이터셋 정보", font=("Arial", 14, "bold")).pack(anchor="w", padx=10, pady=5)
+        self.f1_info_label = ctk.CTkLabel(info_frame, text="", font=("Arial", 12), justify="left")
+        self.f1_info_label.pack(anchor="w", padx=20, pady=5)
+
+        # 2. Confusion Matrix (2x2 표)
+        cm_frame = ctk.CTkFrame(result_main_frame)
+        cm_frame.pack(fill="x", pady=10)
+        ctk.CTkLabel(cm_frame, text="🎨 혼동 행렬 (Confusion Matrix)", font=("Arial", 14, "bold")).pack(pady=5)
+
+        # 표 컨테이너
+        table_container = ctk.CTkFrame(cm_frame)
+        table_container.pack(pady=5)
+
+        # 헤더 행
+        header_frame = ctk.CTkFrame(table_container, fg_color="transparent")
+        header_frame.grid(row=0, column=0, columnspan=4, sticky="ew")
+        ctk.CTkLabel(header_frame, text="예측 (Predicted)", font=("Arial", 12, "bold")).pack()
+
+        # 열 헤더
+        ctk.CTkLabel(table_container, text="", width=70).grid(row=1, column=0)
+        ctk.CTkLabel(table_container, text="", width=40).grid(row=1, column=1)
+        ctk.CTkLabel(table_container, text="Abnormal", font=("Arial", 11, "bold"), width=130).grid(row=1, column=2, padx=2, pady=2)
+        ctk.CTkLabel(table_container, text="Normal", font=("Arial", 11, "bold"), width=130).grid(row=1, column=3, padx=2, pady=2)
+
+        # 실제 (세로) 레이블
+        actual_label_frame = ctk.CTkFrame(table_container, fg_color="transparent")
+        actual_label_frame.grid(row=2, column=0, rowspan=2, sticky="ns")
+        ctk.CTkLabel(actual_label_frame, text="실제\n(Actual)", font=("Arial", 10, "bold"), justify="center").pack(expand=True)
+
+        # 행 헤더
+        ctk.CTkLabel(table_container, text="Abnormal", font=("Arial", 10, "bold"), width=85).grid(row=2, column=1, padx=2, pady=2)
+        ctk.CTkLabel(table_container, text="Normal", font=("Arial", 10, "bold"), width=85).grid(row=3, column=1, padx=2, pady=2)
+
+        # 셀 (TP, FN, FP, TN)
+        self.cm_tp_label = ctk.CTkLabel(table_container, text="TP\n-", font=("Arial", 15, "bold"),
+                                        width=130, height=65, fg_color="#4CAF50", corner_radius=5)
+        self.cm_tp_label.grid(row=2, column=2, padx=2, pady=2)
+
+        self.cm_fn_label = ctk.CTkLabel(table_container, text="FN\n-", font=("Arial", 15, "bold"),
+                                        width=130, height=65, fg_color="#FF6B6B", corner_radius=5)
+        self.cm_fn_label.grid(row=2, column=3, padx=2, pady=2)
+
+        self.cm_fp_label = ctk.CTkLabel(table_container, text="FP\n-", font=("Arial", 15, "bold"),
+                                        width=130, height=65, fg_color="#FF6B6B", corner_radius=5)
+        self.cm_fp_label.grid(row=3, column=2, padx=2, pady=2)
+
+        self.cm_tn_label = ctk.CTkLabel(table_container, text="TN\n-", font=("Arial", 15, "bold"),
+                                        width=130, height=65, fg_color="#4CAF50", corner_radius=5)
+        self.cm_tn_label.grid(row=3, column=3, padx=2, pady=2)
+
+        # Confusion Matrix 설명
+        self.cm_desc_label = ctk.CTkLabel(cm_frame, text="", font=("Arial", 10), justify="left")
+        self.cm_desc_label.pack(anchor="w", padx=20, pady=5)
+
+        # 3. 성능 지표
+        metrics_frame = ctk.CTkFrame(result_main_frame)
+        metrics_frame.pack(fill="x", pady=10)
+        ctk.CTkLabel(metrics_frame, text="📈 성능 지표 (Performance Metrics)", font=("Arial", 14, "bold")).pack(pady=5)
+
+        # 지표 그리드
+        metrics_grid = ctk.CTkFrame(metrics_frame)
+        metrics_grid.pack(pady=5)
+
+        self.f1_score_label = ctk.CTkLabel(metrics_grid, text="F1 Score: -", font=("Arial", 16, "bold"),
+                                          width=220, height=55, fg_color="#FF9800", corner_radius=5)
+        self.f1_score_label.grid(row=0, column=0, columnspan=2, padx=4, pady=4)
+
+        self.precision_label = ctk.CTkLabel(metrics_grid, text="Precision: -", font=("Arial", 13),
+                                           width=220, height=45, fg_color="#2196F3", corner_radius=5)
+        self.precision_label.grid(row=1, column=0, padx=4, pady=4)
+
+        self.recall_label = ctk.CTkLabel(metrics_grid, text="Recall: -", font=("Arial", 13),
+                                        width=220, height=45, fg_color="#2196F3", corner_radius=5)
+        self.recall_label.grid(row=1, column=1, padx=4, pady=4)
+
+        self.accuracy_label = ctk.CTkLabel(metrics_grid, text="Accuracy: -", font=("Arial", 13),
+                                          width=448, height=45, fg_color="#9C27B0", corner_radius=5)
+        self.accuracy_label.grid(row=2, column=0, columnspan=2, padx=4, pady=4)
+
+        # 4. Anomaly Score 분포
+        dist_frame = ctk.CTkFrame(result_main_frame)
+        dist_frame.pack(fill="x", pady=10)
+        ctk.CTkLabel(dist_frame, text="📉 Anomaly Score 분포 분석", font=("Arial", 14, "bold")).pack(pady=5)
+        self.f1_dist_label = ctk.CTkLabel(dist_frame, text="", font=("Arial", 11), justify="left")
+        self.f1_dist_label.pack(anchor="w", padx=20, pady=5)
 
     def connect_to_api(self):
         """API 서버 연결"""
@@ -414,107 +503,80 @@ class VisionADTestApp:
 
         # 비동기 처리
         def f1_task():
-            total_images = len(self.normal_image_paths) + len(self.abnormal_image_paths)
-            self.f1_status_label.configure(text=f"{total_images}개 이미지 추론 중...")
-            self.f1_result_textbox.delete("1.0", "end")
+            try:
+                total_images = len(self.normal_image_paths) + len(self.abnormal_image_paths)
+                self.f1_status_label.configure(text=f"{total_images}개 이미지 추론 중...")
 
-            result, error = self.client.calculate_f1_score(
-                self.normal_image_paths,
-                self.abnormal_image_paths,
-                threshold
-            )
+                result, error = self.client.calculate_f1_score(
+                    self.normal_image_paths,
+                    self.abnormal_image_paths,
+                    threshold
+                )
 
-            if error:
-                self.root.after(0, lambda: messagebox.showerror("오류", error))
-                self.root.after(0, lambda: self.f1_status_label.configure(text="계산 실패"))
-            else:
-                # 결과 출력
-                def display_result():
-                    self.f1_result_textbox.delete("1.0", "end")
+                if error:
+                    print(f"ERROR: {error}")
+                    self.root.after(0, lambda: messagebox.showerror("오류", error))
+                    self.root.after(0, lambda: self.f1_status_label.configure(text="❌ 계산 실패"))
+                else:
+                    # 결과 출력
+                    def display_result():
+                        # 통계 계산
+                        normal_avg = sum(result['normal_scores'])/len(result['normal_scores'])
+                        abnormal_avg = sum(result['abnormal_scores'])/len(result['abnormal_scores'])
+                        normal_std = (sum((x - normal_avg)**2 for x in result['normal_scores']) / len(result['normal_scores']))**0.5
+                        abnormal_std = (sum((x - abnormal_avg)**2 for x in result['abnormal_scores']) / len(result['abnormal_scores']))**0.5
 
-                    # 통계 계산
-                    normal_avg = sum(result['normal_scores'])/len(result['normal_scores'])
-                    abnormal_avg = sum(result['abnormal_scores'])/len(result['abnormal_scores'])
+                        # 1. 데이터셋 정보 업데이트
+                        info_text = f"""✓ Threshold: {result['threshold']:.4f}
+✓ 정상 이미지: {len(result['normal_scores'])}개
+✓ 비정상 이미지: {len(result['abnormal_scores'])}개
+✓ 전체 이미지: {len(result['normal_scores']) + len(result['abnormal_scores'])}개"""
+                        self.f1_info_label.configure(text=info_text)
 
-                    output = f"""
-╔═══════════════════════════════════════════════════════════════════╗
-║                       🎯 F1 Score 계산 결과                       ║
-╚═══════════════════════════════════════════════════════════════════╝
+                        # 2. Confusion Matrix 업데이트
+                        self.cm_tp_label.configure(text=f"TP\n{result['tp']}")
+                        self.cm_fn_label.configure(text=f"FN\n{result['fn']}")
+                        self.cm_fp_label.configure(text=f"FP\n{result['fp']}")
+                        self.cm_tn_label.configure(text=f"TN\n{result['tn']}")
 
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  📊 데이터셋 정보                                                ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-  ✓ Threshold: {result['threshold']:.4f}
-  ✓ 정상 이미지: {len(result['normal_scores'])}개
-  ✓ 비정상 이미지: {len(result['abnormal_scores'])}개
-  ✓ 전체 이미지: {len(result['normal_scores']) + len(result['abnormal_scores'])}개
+                        cm_desc_text = f"""TP (True Positive):  {result['tp']:3d}개 - 비정상을 비정상으로 올바르게 판정
+TN (True Negative):  {result['tn']:3d}개 - 정상을 정상으로 올바르게 판정
+FP (False Positive): {result['fp']:3d}개 - 정상을 비정상으로 잘못 판정
+FN (False Negative): {result['fn']:3d}개 - 비정상을 정상으로 잘못 판정"""
+                        self.cm_desc_label.configure(text=cm_desc_text)
 
+                        # 3. 성능 지표 업데이트
+                        self.f1_score_label.configure(text=f"F1 Score: {result['f1_score']:.4f} ({result['f1_score']*100:.2f}%)")
+                        self.precision_label.configure(text=f"Precision: {result['precision']:.4f} ({result['precision']*100:.2f}%)")
+                        self.recall_label.configure(text=f"Recall: {result['recall']:.4f} ({result['recall']*100:.2f}%)")
+                        self.accuracy_label.configure(text=f"Accuracy: {result['accuracy']:.4f} ({result['accuracy']*100:.2f}%)")
 
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  🎨 혼동 행렬 (Confusion Matrix)                                ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                        # 4. Anomaly Score 분포 업데이트
+                        dist_text = f"""✅ 정상 이미지 (Normal):
+   • 최소값: {min(result['normal_scores']):.6f}
+   • 최대값: {max(result['normal_scores']):.6f}
+   • 평균값: {normal_avg:.6f}
+   • 표준편차: {normal_std:.6f}
 
-                        예측 (Predicted)
-              ┌─────────────┬─────────────┐
-              │  Abnormal   │   Normal    │
-  ┌───────────┼─────────────┼─────────────┤
-  │ Abnormal  │     {result['tp']:3d}     │     {result['fn']:3d}     │  ← 실제 비정상
-실│           │     ✓TP     │     ✗FN     │
-제├───────────┼─────────────┼─────────────┤
-  │  Normal   │     {result['fp']:3d}     │     {result['tn']:3d}     │  ← 실제 정상
-  │           │     ✗FP     │     ✓TN     │
-  └───────────┴─────────────┴─────────────┘
+🔴 비정상 이미지 (Abnormal):
+   • 최소값: {min(result['abnormal_scores']):.6f}
+   • 최대값: {max(result['abnormal_scores']):.6f}
+   • 평균값: {abnormal_avg:.6f}
+   • 표준편차: {abnormal_std:.6f}
 
-  📌 TP (True Positive):  {result['tp']:3d}개 - 비정상을 비정상으로 올바르게 판정
-  📌 TN (True Negative):  {result['tn']:3d}개 - 정상을 정상으로 올바르게 판정
-  📌 FP (False Positive): {result['fp']:3d}개 - 정상을 비정상으로 잘못 판정
-  📌 FN (False Negative): {result['fn']:3d}개 - 비정상을 정상으로 잘못 판정
+📊 평균 점수 차이: {abs(abnormal_avg - normal_avg):.6f}"""
+                        self.f1_dist_label.configure(text=dist_text)
 
+                        self.f1_status_label.configure(text="✅ 계산 완료!")
 
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  📈 성능 지표 (Performance Metrics)                              ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                    self.root.after(0, display_result)
 
-  ╔════════════════════════════════════════════════════════════╗
-  ║  🎯 F1 Score    {result['f1_score']:.4f}  ({result['f1_score']*100:6.2f}%)                     ║
-  ╠════════════════════════════════════════════════════════════╣
-  ║  🔍 Precision   {result['precision']:.4f}  ({result['precision']*100:6.2f}%)                     ║
-  ║  📊 Recall      {result['recall']:.4f}  ({result['recall']*100:6.2f}%)                     ║
-  ║  ✅ Accuracy    {result['accuracy']:.4f}  ({result['accuracy']*100:6.2f}%)                     ║
-  ╚════════════════════════════════════════════════════════════╝
-
-  💡 Precision = TP / (TP + FP) = {result['tp']} / {result['tp'] + result['fp']} = {result['precision']:.4f}
-  💡 Recall    = TP / (TP + FN) = {result['tp']} / {result['tp'] + result['fn']} = {result['recall']:.4f}
-  💡 Accuracy  = (TP + TN) / Total = {result['tp'] + result['tn']} / {len(result['normal_scores']) + len(result['abnormal_scores'])} = {result['accuracy']:.4f}
-
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  📉 Anomaly Score 분포 분석                                     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
-  ✅ 정상 이미지 (Normal):
-     ├─ 최소값: {min(result['normal_scores']):.6f}
-     ├─ 최대값: {max(result['normal_scores']):.6f}
-     ├─ 평균값: {normal_avg:.6f}
-     └─ 표준편차: {(sum((x - normal_avg)**2 for x in result['normal_scores']) / len(result['normal_scores']))**0.5:.6f}
-
-  🔴 비정상 이미지 (Abnormal):
-     ├─ 최소값: {min(result['abnormal_scores']):.6f}
-     ├─ 최대값: {max(result['abnormal_scores']):.6f}
-     ├─ 평균값: {abnormal_avg:.6f}
-     └─ 표준편차: {(sum((x - abnormal_avg)**2 for x in result['abnormal_scores']) / len(result['abnormal_scores']))**0.5:.6f}
-
-  📊 평균 점수 차이: {abs(abnormal_avg - normal_avg):.6f}
-
-
-╔═══════════════════════════════════════════════════════════════════╗
-║  ✨ 계산 완료! 결과를 확인하세요.                                ║
-╚═══════════════════════════════════════════════════════════════════╝
-"""
-                    self.f1_result_textbox.insert("1.0", output)
-                    self.f1_status_label.configure(text="✅ 계산 완료!")
-
-                self.root.after(0, display_result)
+            except Exception as e:
+                import traceback
+                error_msg = traceback.format_exc()
+                print(f"EXCEPTION in f1_task:\n{error_msg}")
+                self.root.after(0, lambda: messagebox.showerror("예외 발생", f"예상치 못한 오류:\n{str(e)}"))
+                self.root.after(0, lambda: self.f1_status_label.configure(text="❌ 예외 발생"))
 
         thread = threading.Thread(target=f1_task)
         thread.start()

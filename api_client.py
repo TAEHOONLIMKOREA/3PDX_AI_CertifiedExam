@@ -14,7 +14,7 @@ import tempfile
 class VisionADClient:
     """Vision Anomaly Detection API 클라이언트"""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://bigsoft.iptime.org:55630"):
         """
         Args:
             base_url: FastAPI 서버 주소
@@ -138,21 +138,59 @@ class VisionADClient:
             # ZIP 파일에서 scores.csv 추출 및 파싱
             score_dict = {}  # {filename: anomaly_score}
 
-            with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-                # scores.csv 읽기
-                if 'scores.csv' not in zip_ref.namelist():
-                    return None, "결과 ZIP에 scores.csv가 없습니다"
+            try:
+                with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
+                    # ZIP 내용 확인
+                    zip_contents = zip_ref.namelist()
+                    print(f"DEBUG: ZIP 파일 내용: {zip_contents}")
 
-                with zip_ref.open('scores.csv') as csv_file:
-                    # CSV 파싱
-                    csv_content = csv_file.read().decode('utf-8')
-                    csv_reader = csv.DictReader(csv_content.splitlines())
+                    # scores.csv 읽기
+                    if 'scores.csv' not in zip_contents:
+                        return None, f"결과 ZIP에 scores.csv가 없습니다. 포함된 파일: {zip_contents}"
 
-                    for row in csv_reader:
-                        # CSV 구조: filename, anomaly_score 등
-                        filename = row.get('filename', row.get('image', ''))
-                        score = float(row.get('anomaly_score', row.get('score', 0)))
-                        score_dict[filename] = score
+                    with zip_ref.open('scores.csv') as csv_file:
+                        # CSV 파싱
+                        csv_content = csv_file.read().decode('utf-8')
+                        print(f"DEBUG: CSV 내용 미리보기:\n{csv_content[:500]}")
+
+                        csv_reader = csv.DictReader(csv_content.splitlines())
+
+                        # CSV 헤더 확인
+                        fieldnames = csv_reader.fieldnames
+                        print(f"DEBUG: CSV 컬럼: {fieldnames}")
+
+                        for row in csv_reader:
+                            # CSV 구조: img_path, anomaly_score 등
+                            img_path_full = (row.get('img_path') or
+                                           row.get('filename') or
+                                           row.get('image') or
+                                           row.get('file_name') or
+                                           row.get('image_name') or '')
+
+                            score_str = (row.get('anomaly_score') or
+                                       row.get('score') or
+                                       row.get('anomaly') or '0')
+
+                            if not img_path_full:
+                                print(f"DEBUG: 파일 경로를 찾을 수 없는 행: {row}")
+                                continue
+
+                            # 전체 경로에서 파일명만 추출
+                            filename = os.path.basename(img_path_full)
+
+                            try:
+                                score = float(score_str)
+                            except ValueError:
+                                print(f"DEBUG: 점수 변환 실패: {score_str}")
+                                score = 0.0
+
+                            score_dict[filename] = score
+                            print(f"DEBUG: 파일명={filename}, 점수={score}")
+
+                print(f"DEBUG: 추출된 점수 딕셔너리: {score_dict}")
+
+            except Exception as e:
+                return None, f"ZIP/CSV 파싱 오류: {str(e)}"
 
             # 정상/비정상 이미지의 점수 분리
             normal_scores = []
@@ -205,7 +243,10 @@ class VisionADClient:
             return result, None
 
         except Exception as e:
-            return None, f"F1 Score 계산 오류: {str(e)}"
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"ERROR: F1 Score 계산 중 예외 발생:\n{error_detail}")
+            return None, f"F1 Score 계산 오류: {str(e)}\n\n상세 정보:\n{error_detail}"
 
         finally:
             # 임시 ZIP 파일 삭제
