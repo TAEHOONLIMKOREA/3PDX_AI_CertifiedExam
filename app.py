@@ -236,7 +236,7 @@ class VisionADTestApp:
         result_main_frame.pack(fill="both", expand=True, pady=10)
 
         # 결과 타이틀
-        title_frame = ctk.CTkFrame(result_main_frame, fg_color="#2B2B2B")
+        title_frame = ctk.CTkFrame(result_main_frame)
         title_frame.pack(fill="x", pady=(0, 10))
         ctk.CTkLabel(title_frame, text="🎯 F1 Score 계산 결과", font=("Arial", 18, "bold")).pack(pady=10)
 
@@ -250,7 +250,7 @@ class VisionADTestApp:
         # 2. Confusion Matrix (2x2 표)
         cm_frame = ctk.CTkFrame(result_main_frame)
         cm_frame.pack(fill="x", pady=10)
-        ctk.CTkLabel(cm_frame, text="🎨 혼동 행렬 (Confusion Matrix)", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(cm_frame, text="🎨 Confusion Matrix", font=("Arial", 14, "bold")).pack(pady=5)
 
         # 표 컨테이너
         table_container = ctk.CTkFrame(cm_frame)
@@ -606,10 +606,9 @@ class VisionADTestApp:
                         abnormal_std = (sum((x - abnormal_avg)**2 for x in result['abnormal_scores']) / len(result['abnormal_scores']))**0.5
 
                         # 1. 데이터셋 정보 업데이트
-                        info_text = f"""✓ Threshold: {result['threshold']:.4f}
-✓ 정상 이미지: {len(result['normal_scores'])}개
-✓ 비정상 이미지: {len(result['abnormal_scores'])}개
-✓ 전체 이미지: {len(result['normal_scores']) + len(result['abnormal_scores'])}개"""
+                        info_text = f"""✓ 정상 이미지: {len(result['normal_scores'])}개
+                                        ✓ 비정상 이미지: {len(result['abnormal_scores'])}개
+                                        ✓ 전체 이미지: {len(result['normal_scores']) + len(result['abnormal_scores'])}개"""
                         self.f1_info_label.configure(text=info_text)
 
                         # 2. Confusion Matrix 업데이트
@@ -619,9 +618,9 @@ class VisionADTestApp:
                         self.cm_tn_label.configure(text=f"TN\n{result['tn']}")
 
                         cm_desc_text = f"""TP (True Positive):  {result['tp']:3d}개 - 비정상을 비정상으로 올바르게 판정
-TN (True Negative):  {result['tn']:3d}개 - 정상을 정상으로 올바르게 판정
-FP (False Positive): {result['fp']:3d}개 - 정상을 비정상으로 잘못 판정
-FN (False Negative): {result['fn']:3d}개 - 비정상을 정상으로 잘못 판정"""
+                                        TN (True Negative):  {result['tn']:3d}개 - 정상을 정상으로 올바르게 판정
+                                        FP (False Positive): {result['fp']:3d}개 - 정상을 비정상으로 잘못 판정
+                                        FN (False Negative): {result['fn']:3d}개 - 비정상을 정상으로 잘못 판정"""
                         self.cm_desc_label.configure(text=cm_desc_text)
 
                         # 3. 성능 지표 업데이트
