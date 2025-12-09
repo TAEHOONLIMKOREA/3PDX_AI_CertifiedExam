@@ -232,7 +232,7 @@ class VisionADTestApp:
         self.f1_zip_label.pack(pady=2)
 
         # 결과 표시 영역
-        result_main_frame = ctk.CTkScrollableFrame(bottom_frame, width=500, height=500)
+        result_main_frame = ctk.CTkScrollableFrame(bottom_frame, width=500, height=800)
         result_main_frame.pack(fill="both", expand=True, pady=10)
 
         # 결과 타이틀
